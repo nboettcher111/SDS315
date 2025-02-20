@@ -1,0 +1,322 @@
+---
+title: "Homework 4"
+author: "Natalie Boettcher"
+date: "2025-02-18"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    css: style.css
+  
+---
+
+[Github Link](https://github.com/nboettcher111/SDS315)
+
+```{r global options, echo=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=FALSE)
+```
+
+
+```{r}
+
+# load libraries
+library(mosaic)
+library(tidyverse)
+
+```
+
+## **Problem 1: Iron Bank**
+
+**Null Hypothesis:** Securities trades from the Iron Bank are flagged 2.4% of the time, the same rate as other traders:
+
+<div style="text-align: center;">
+  Ho: P(flagged) = 0.024
+</div>
+
+**Test Statistic:** The test statistic is the number of flagged trades.
+
+**Plot:** The following histogram shows the distribution of flagged trades under the null hypothesis:
+
+```{r}
+
+# 100000 simulations, 2021 trades, 0.024 probability flagged
+simulatedTrades <- do(100000)*rflip(2021, prob = 0.024)
+```
+
+```{r}
+
+# plot distribution of flagged trades
+ggplot(simulatedTrades, aes(x = heads)) +
+  geom_histogram(binwidth = 1, fill = "orchid3", color = "black", boundary = 0.5) +
+  labs(title = "Distribution of Flagged Trades",
+       x = "Number of Flagged Trades",
+       y = "Frequency") +
+  theme_minimal()
+  
+```
+
+**P-Value:** The p-value is 0.0216, the proportion of simulations where the number of flagged trades is greater than or equal to 70.
+
+```{r, results='hide'}
+
+pValue <- prop(simulatedTrades$heads >= 70)
+pValue
+
+```
+
+**Conclusion:** Since the p-value is less than 0.05, it is considered statistically significant. This suggests that 70 flagged trades is unlikely to have happened by chance if the null hypothesis is true.
+
+
+
+## **Problem 2: Health Inspections**
+
+**Null Hypothesis:** Health inspections at Gourmet Bites result in health code violations at a 3% rate:
+
+<div style="text-align: center;"> Ho: P(violation) = 0.03 </div>
+
+**Test Statistic:** The test statistic is the number of health code violations.
+
+**Plot:** The following histogram shows the distribution of health code violations under the null hypothesis, assuming a 3% rate of violations:
+
+```{r}
+
+# 100000 simulations, 50 inspections, 0.03 probability violation
+simulatedViolations <- do(100000) * rflip(50, prob = 0.03)
+
+```
+
+```{r}
+
+# plot distribution of health code violations
+ggplot(simulatedViolations, aes(x = heads)) +
+  geom_histogram(binwidth = 1, fill = "seagreen4", color = "black", boundary = 0.5) +
+  labs(title = "Distribution of Health Code Violations",
+       x = "Number of Health Code Violations",
+       y = "Frequency") +
+  theme_minimal()
+
+
+```
+
+**P-Value:** The p-value is 0.00017, the proportion of simulations where the number of health code violations is greater than or equal to 8.
+
+```{r, results='hide'}
+
+pValueHealth <- prop(simulatedViolations$heads >= 8)
+pValueHealth
+
+```
+
+**Conclusion:** Since the p-value is less than 0.05, it is statistically significant. This suggests that 8 violations is unlikely to have happened by chance if the null hypothesis is true. This could suggest that Gourmet Bites might have a higher rate of health code violations than the citywide average.
+
+
+
+## **Problem 3: Evaluating Jury Selection for Bias**
+
+**Null Hypothesis:** The jury group distribution is the same as the population distribution.
+
+**Alternative Hypothesis:** The jury group distribution is different from the population distribution.
+
+**Test Statistic:** A chi-square test is used to compare the observed jury distribution with the expected distribution based on the county’s population proportions.
+
+```{r}
+
+# expected and observed counts
+expectedDistribution <- c(Group1 = 0.3, Group2 = 0.25, Group3 = 0.2, Group4 = 0.15, Group5 = 0.1)
+observedCounts <- c(Group1 = 85, Group2 = 56, Group3 = 59, Group4 = 27, Group5 = 13)
+
+# total num. of jurors
+totalJurors <- sum(observedCounts)
+
+# compare observed and expected counts
+tibble(observed = observedCounts, expected = expectedDistribution * totalJurors)
+```
+
+**Plot:** The following histogram shows the distribution of the chi-square statistic under the null hypothesis:
+
+```{r}
+
+# calculate chi squared statistic
+chi_squared_statistic = function(observed, expected) {
+  sum((observed - expected)^2 / expected)
+}
+
+# Simulations
+num_simulations = 10000
+chi2_sim = do(num_simulations) * {
+  simulated_counts = rmultinom(1, totalJurors, expectedDistribution)
+  this_chi2 = chi_squared_statistic(simulated_counts, totalJurors * expectedDistribution)
+  c(chi2 = this_chi2)
+}
+
+# Plot distribution
+ggplot(chi2_sim) + 
+  geom_histogram(aes(x = chi2), binwidth = 0.5, fill = "tomato3", color = "black") +
+  labs(title = "Distribution of Chi-Squared Statistics Under Null Hypothesis",
+       x = "Chi-Squared Statistic",
+       y = "Frequency") +
+  theme_minimal()
+
+
+```
+
+**Observed Chi-Squared Statistic:** The observed chi-squared statistic is 12.426.
+
+```{r, results='hide'}
+
+my_chi2 = chi_squared_statistic(observedCounts, totalJurors * expectedDistribution)
+my_chi2
+
+
+```
+
+**P-Value:** The p-value is 0.0129.
+
+```{r, results='hide'}
+
+# Calculate p-value
+p_value = prop(chi2_sim$chi2 >= my_chi2)
+p_value
+
+
+```
+
+**Conclusion:** Since the p-value is less than 0.05, the null hypothesis is rejected. This suggests that the jury selection process is significantly different from the county's population distribution.
+
+
+## **Problem 4: LLM Watermarking**
+
+
+## Part A: the null or reference distribution
+
+```{r}
+
+# 1. Read the sentences
+sentences <- readLines("brown_sentences.txt")
+
+# 2. Preprocess the text
+
+preprocess_text <- function(sentence) {
+  sentence <- gsub("[^A-Za-z]", "", sentence)
+  sentence <- toupper(sentence)
+  
+  # Count the occurrences of each letter (A-Z)
+  letter_counts <- table(strsplit(sentence, NULL))
+  
+  
+  all_letters <- letters[1:26]
+  letter_counts <- as.numeric(letter_counts[all_letters])
+  names(letter_counts) <- all_letters
+  return(letter_counts)
+}
+
+
+letter_counts_list <- lapply(sentences, preprocess_text)
+
+```
+
+```{r}
+
+# 4. Compare with expected count
+
+expected_frequency <- c(A = 0.078688, B = 0.01621, C = 0.023583, D = 0.041729, E = 0.121905,
+                        F = 0.02157, G = 0.019764, H = 0.062936, I = 0.068048, J = 0.001504,
+                        K = 0.00863, L = 0.043464, M = 0.027408, N = 0.066694, O = 0.078634,
+                        P = 0.016037, Q = 0.001046, R = 0.059903, S = 0.06438, T = 0.08826,
+                        U = 0.031281, V = 0.009825, W = 0.0237, X = 0.001395, Y = 0.022843, Z = 0.000502)
+
+
+```
+
+```{r}
+# 5. Compute chi-squared statistic
+
+chi_squared_statistic <- function(observed, expected, sentence_length) {
+  expected_counts <- expected * sentence_length
+  sum((observed - expected_counts)^2 / expected_counts)
+}
+
+
+```
+
+```{r}
+# 6. Compile the distribution
+
+chi_squared_stats <- numeric(length(sentences))
+
+# Calculate the chi-squared statistic for each sentence
+for (i in 1:length(sentences)) {
+  observed_counts <- letter_counts_list[[i]]
+  sentence_length <- sum(observed_counts)  
+  
+  chi_squared_stats[i] <- chi_squared_statistic(observed_counts, expected_frequency, sentence_length)
+}
+
+```
+
+
+```{r}
+# Create the null distribution
+null_distribution <- chi_squared_stats
+```
+
+
+## Part B: checking for a watermark
+
+```{r}
+# 1. input sentences into r vector
+sentences_to_check <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+# 2. reprocess sentences
+letter_counts_check_list <- lapply(sentences_to_check, preprocess_text)
+
+# 3. calculate chi squared for each sentnece
+chi_squared_check_stats <- numeric(length(sentences_to_check))
+
+for (i in 1:length(sentences_to_check)) {
+  observed_counts <- letter_counts_check_list[[i]]
+  sentence_length <- sum(observed_counts)  # Length of the sentence (total number of letters)
+  
+  chi_squared_check_stats[i] <- chi_squared_statistic(observed_counts, expected_frequency, sentence_length)
+}
+
+# 4. p value for each sentence
+
+p_values <- sapply(chi_squared_check_stats, function(stat) mean(null_distribution >= stat))
+
+# 5.  table of p-values
+p_values_table <- data.frame(
+  Sentence = 1:10,
+  P_Value = round(p_values, 3)
+)
+
+print(p_values_table)
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
