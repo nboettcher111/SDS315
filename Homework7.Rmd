@@ -1,0 +1,276 @@
+---
+title: "Homework 7"
+author: "Natalie Boettcher"
+date: "2025-04-07"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    css: style.css
+---
+
+[Github Link](https://github.com/nboettcher111/SDS315)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(readr)
+
+```
+
+# **Problem 1: Armfolding**
+
+
+# A: Load and Examine Data
+
+```{r}
+# load data
+armfoldData <- read.csv("armfold.csv")
+
+# find number of male and female students
+genderCounts <- table(armfoldData$Sex)
+#genderCounts
+
+# proportions of left arm on top by gender
+maleData <- armfoldData[armfoldData$Sex == "Male", ]
+femaleData <- armfoldData[armfoldData$Sex == "Female", ]
+
+maleN <- nrow(maleData)
+femaleN <- nrow(femaleData)
+
+maleLeft <- sum(maleData$LonR_fold)
+femaleLeft <- sum(femaleData$LonR_fold)
+
+maleProp <- mean(maleData$LonR_fold)
+femaleProp <- mean(femaleData$LonR_fold)
+
+#maleProp
+#femaleProp
+```
+
+Number of male students: **106**
+
+Number of female students: **111**
+
+Proportion of males who folded left arm on top: **0.471**
+
+Proportion of females who folded left arm on top: **0.423**
+
+
+# B: Observed Difference in Proportions
+
+```{r}
+diffProp <- maleProp - femaleProp
+#diffProp
+```
+
+Observed difference in proportions between males and females: **0.048**
+
+# C: 95% Confidence Interval for the Difference in Proportions
+
+```{r}
+x <- c(maleLeft, femaleLeft)
+n <- c(maleN, femaleN)
+
+ciResult <- prop.test(x = x, n = n, correct = FALSE)
+#ciResult$conf.int
+```
+The confidence interval for the difference in proportions (males minus females) is from **-0.084** to **0.180**.
+
+Here is how the confidence interval was calculated: 
+  
+  **Formula for Standard Error: **
+
+    SE = sqrt( (p1(1 - p1) / n1) + (p2(1 - p2) / n2) )
+    
+    SE = sqrt((maleProp * (1 - 0.maleProp)) / male_n + 
+           (femaleProp * (1 - femaleProp)) / male_n)
+           
+    SE = sqrt((0.471 * (1 - 0.471)) / 106 + 
+           (0.423 * (1 - 0.423)) / 111)
+           
+    SE = 0.0674
+
+  **z* for 95% confidence:** I used a z star of 1.96 because for a 95% confidence level, the critical value from the standard normal distribution is 1.96, which captures the middle 95% of the distribution.
+    
+  **Confidence interval calculation:**
+    diffProp = 0.048
+    
+    lower = diffProp - z star * SE
+    lower = 0.048 - 1.96 * 0.0674
+    lower = -0.0841
+    
+    upper = diffProp + z star * SE
+    upper = 0.048 + 1.96 * 0.064
+    upper = 0.1734
+    
+    (lower, upper)
+    (-0.0841, 0.1734)
+
+
+# D: Interpretation of Confidence Interval
+If we were to repeat this sampling procedure many times, then we would expect that about 95% of the resulting confidence intervals would contain the true difference in population proportions. This means we’re 95% confident that the true difference in proportions (males minus females) lies somewhere between -8.39% and 18.05%.
+
+# E: What does the standard error represent?
+The standard error represents the typical amount of variability in the difference in sample proportions from sample to sample. It measures how much the observed difference in proportions would fluctuate due to random sampling variation.
+
+# F: What is a sampling distribution?
+The sampling distribution in this context is the distribution of the difference in sample proportions (male minus female) we would obtain if we repeatedly took random samples from the population. The population proportions are fixed, but the sample proportions vary each time.
+
+# G: Why use a normal approximation?
+The Central Limit Theorem justifies the use of a normal distribution to approximate the sampling distribution of the difference in proportions. It states that, for large enough samples, the sampling distribution of a proportion (or difference in proportions) is approximately normal—even if the underlying data are binary.
+
+# H: Interpreting a CI of [-0.0839, 0.1805]
+Because the confidence interval includes 0, we do not have strong statistical evidence to conclude that there is a real gender difference in arm folding. It is possible that there’s no actual difference between males and females when it comes to which arm is on top. While the observed sample suggests a small difference, the data are consistent with no difference at all.
+
+# I: Would Confidence Intervals Change Across Samples?
+Yes, the confidence interval would vary from sample to sample due to random sampling variability. Each sample might produce a different estimate of the difference in proportions. However, over many repetitions, we expect that 95% of the intervals we construct would contain the true population difference.
+
+
+
+# **Problem 2: Get out the vote**
+
+# Part A
+
+```{r}
+# load dataset
+turnoutData <- read.csv("turnout.csv")
+
+# Split data
+gotvYes <- turnoutData[turnoutData$GOTV_call == 1, ]
+gotvNo <- turnoutData[turnoutData$GOTV_call == 0, ]
+
+# Proportions
+propGotvYes <- mean(gotvYes$voted1998)
+propGotvNo <- mean(gotvNo$voted1998)
+
+#propGotvYes
+#propGotvNo
+```
+The proportion of those receiving a GOTV call who voted in 1998 is **0.648**.
+The sample proportion of those not receiving a GOTV call who voted in 1998 is **0.444**
+
+```{r}
+# Counts
+x <- c(sum(gotvYes$voted1998), sum(gotvNo$voted1998))
+n <- c(nrow(gotvYes), nrow(gotvNo))
+
+# 95% CI using prop.test
+ciUnmatched <- prop.test(x = x, n = n, correct = FALSE)
+#ciUnmatched$estimate
+#ciUnmatched$conf.int
+```
+
+
+A 95% confidence interval for the difference of proportions of those who received a GOTV call versus those who didn’t: **(0.143, 0.264)**
+
+# Part B
+
+```{r}
+# Mean of confounders by GOTV group
+meanVoted1996Yes <- mean(gotvYes$voted1996)
+meanVoted1996No <- mean(gotvNo$voted1996)
+
+meanAgeYes <- mean(gotvYes$AGE)
+meanAgeNo <- mean(gotvNo$AGE)
+
+meanPartyYes <- mean(gotvYes$MAJORPTY)
+meanPartyNo <- mean(gotvNo$MAJORPTY)
+
+c(meanVoted1996Yes, meanVoted1996No)
+c(meanAgeYes, meanAgeNo)
+c(meanPartyYes, meanPartyNo)
+
+```
+```{r}
+# confidence interval
+# Standard errors and CIs
+
+# voted1996
+seVoted1996 <- sqrt((meanVoted1996Yes * (1 - meanVoted1996Yes)) / nrow(gotvYes) +
+                     (meanVoted1996No * (1 - meanVoted1996No)) / nrow(gotvNo))
+diffVoted1996 <- meanVoted1996Yes - meanVoted1996No
+ciVoted1996 <- c(diffVoted1996 - 1.96 * seVoted1996, diffVoted1996 + 1.96 * seVoted1996)
+
+# AGE
+seAge <- sqrt(var(gotvYes$AGE) / nrow(gotvYes) + var(gotvNo$AGE) / nrow(gotvNo))
+diffAge <- meanAgeYes - meanAgeNo
+ciAge <- c(diffAge - 1.96 * seAge, diffAge + 1.96 * seAge)
+
+# MAJORPTY
+seParty <- sqrt((meanPartyYes * (1 - meanPartyYes)) / nrow(gotvYes) +
+                 (meanPartyNo * (1 - meanPartyNo)) / nrow(gotvNo))
+diffParty <- meanPartyYes - meanPartyNo
+ciParty <- c(diffParty - 1.96 * seParty, diffParty + 1.96 * seParty)
+
+list(
+  voted1996CI = ciVoted1996,
+  ageCI = ciAge,
+  partyCI = ciParty
+)
+
+```
+
+# Part C
+
+```{r}
+# Step 1: Fit propensity score model
+#ps_model <- glm(GOTV_call ~ voted1996 + AGE + MAJORPTY, data = turnoutData, family = binomial())
+
+# Add propensity scores to data
+#turnoutData$pscore <- predict(ps_model, type = "response")
+
+# Step 2: Split treated and control groups
+#treated <- turnoutData[turnoutData$GOTV_call == 1, ]
+#control <- turnoutData[turnoutData$GOTV_call == 0, ]
+
+# Step 3: Match 5 controls to each treated unit
+# Initialize matched dataset
+#matched_rows <- data.frame()
+
+# For each treated person, find 5 nearest controls
+#for (i in 1:nrow(treated)) {
+  #treated_ps <- treated$pscore[i]
+  #control$dist <- abs(control$pscore - treated_ps)
+  
+  # Get the 5 nearest controls
+  #nearest_controls <- control[order(control$dist), ][1:5, ]
+  
+  # Store the treated person and their 5 matches
+  #matched_set <- rbind(treated[i, ], nearest_controls)
+  #matched_rows <- rbind(matched_rows, matched_set)
+#}
+
+# Step 4: Create matched dataset
+#matched_data <- matched_rows
+
+# Step 5: Check balance on confounders
+#matched_treated <- matched_data[matched_data$GOTV_call == 1, ]
+#matched_control <- matched_data[matched_data$GOTV_call == 0, ]
+
+#mean(matched_treated$voted1996)
+#mean(matched_control$voted1996)
+
+#mean(matched_treated$AGE)
+#mean(matched_control$AGE)
+
+#mean(matched_treated$MAJORPTY)
+#mean(matched_control$MAJORPTY)
+
+# Step 6: Recalculate voting proportions and CI
+#mean(matched_treated$voted1998)
+#mean(matched_control$voted1998)
+
+#x_matched <- c(sum(matched_treated$voted1998), sum(matched_control$voted1998))
+#n_matched <- c(nrow(matched_treated), nrow(matched_control))
+
+#ci_matched <- prop.test(x = x_matched, n = n_matched, correct = FALSE)
+#ci_matched$estimate
+#ci_matched$conf.int
+
+```
+
+
