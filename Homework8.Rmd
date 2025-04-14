@@ -1,0 +1,249 @@
+---
+title: "Homework 8"
+author: "Natalie Boettcher"
+date: "2025-04-14"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    css: style.css
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=FALSE)
+```
+
+
+[Github Link](https://github.com/nboettcher111/SDS315)
+
+
+```{r}
+
+# load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(boot)
+
+# problem 1 dataset
+creatinine <- read.csv("creatinine.csv")
+
+# problem 2 dataset
+covid <- read.csv("covid.csv")
+
+# problem 3 dataset
+milk <- read.csv("milk.csv")
+
+```
+
+
+## **Problem 1: Regression Warm-Up**
+
+
+## A: What creatinine clearance rate should we expect for a 55-year-old? 
+
+
+```{r}
+
+# Fit linear regression model
+model <- lm(creatclear ~ age, data = creatinine)
+#summary(model)
+
+```
+Estimated regression equation: **y = 147.813 − 0.620 * age**
+
+&nbsp;&nbsp;&nbsp;&nbsp;Now we just plug 55 into the equation:
+
+  y = 147.813 − 0.620 * 55 = 147.813 − 34.09 = 113.723
+  
+&nbsp;&nbsp;&nbsp;&nbsp;The expected creatinine clearance rate for a 55-year-old is about **113.72 mL/min.**
+
+
+## B: How does creatinine clearance rate change with age?
+
+
+This is simply the slope of the model. From part A, we know that the slope is about **−0.620**, Which means that the creatinine clearance rate decreases by 0.620 mL/min per year of age.
+
+
+## C: Whose creatinine clearance rate is healthier (higher) for their age: a 40-year-old with a rate of 135, or a 60-year-old with a rate of 112? 
+
+
+We need to Calculate expected creatinine clearance for each age using the equation: y = 147.813 − 0.61982 * age
+  
+  
+&nbsp;&nbsp;&nbsp;&nbsp;For the **40-year-old:**
+
+<div align="center">
+y(40) = 147.813 − 0.61982 * 40 = 147.813 − 24.7928 = **123.0202**
+</div>
+  
+&nbsp;&nbsp;&nbsp;&nbsp;Subtract from actual:
+
+<div align="center"> 
+135 - 123.02 = **11.98**
+</div>  
+  
+  
+&nbsp;&nbsp;&nbsp;&nbsp;For the 60-year-old: 
+
+<div align="center">
+y(60) = 147.813 − 0.61982 * 60 = 147.813 − 37.1892 = **110.6238**
+</div> 
+  
+&nbsp;&nbsp;&nbsp;&nbsp;Subract from actual:
+
+<div align="center">
+112 - 110.62 = **1.38**
+</div>
+  
+  
+**Conclusion:** The 40-year-old has a clearance 11.98 mL/min above expected for their age, while the 60-year-old is only 1.38 mL/min above expected. Therefore, the 40-year-old has a healthier creatinine clearance rate for their age.<br><br>
+
+
+
+## **Problem 2: Modeling Disease Growth**
+
+
+## Model For Italy
+
+```{r}
+
+# model for Italy
+italy <- covid %>% filter(country == "Italy", deaths > 0)
+italyModel <- lm(log(deaths) ~ days_since_first_death, data = italy)
+#summary(italyModel)
+```
+```{r}
+
+# italy model growth rate
+italyGrowth <- coef(italyModel)[2]
+italyDoubling <- log(2) / italyGrowth
+
+```
+
+```{r}
+
+# Italy bootstrap confidence interval
+italyBoot <- function(data, indices) {
+  d <- data[indices, ]
+  fit <- lm(log(deaths) ~ days_since_first_death, data = d)
+  growth <- coef(fit)[2]
+  doubling <- log(2) / growth
+  return(c(growth, doubling))
+}
+
+italyResults <- boot(italy, statistic = italyBoot, R = 1000)
+
+# CI
+#growth rate
+#boot.ci(italyResults, index = 1, type = "perc")
+#doubling time
+#boot.ci(italyResults, index = 2, type = "perc")  
+
+```
+
+
+The exponential growth model for Italy yielded an estimated growth rate of **0.183** (95% CI: 0.1588,  0.2079), corresponding to a doubling time of **3.78** days (95% CI: 3.334,  4.364).
+
+## Model For Spain
+
+```{r}
+# model for Spain
+spain <- covid %>% filter(country == "Spain", deaths > 0)
+spainModel <- lm(log(deaths) ~ days_since_first_death, data = spain)
+#summary(spainModel)
+
+```
+
+```{r}
+
+# Spain model growth rate
+spainGrowth <- coef(spainModel)[2]
+spainDoubling <- log(2) / spainGrowth
+
+```
+
+```{r}
+
+# Spain bootstrap confidence interval
+spainBoot <- function(data, indices) {
+  d <- data[indices, ]
+  fit <- lm(log(deaths) ~ days_since_first_death, data = d)
+  growth <- coef(fit)[2]
+  doubling <- log(2) / growth
+  return(c(growth, doubling))
+}
+
+
+SpainResults <- boot(spain, statistic = spainBoot, R = 1000)
+
+# CI
+#boot.ci(SpainResults, index = 1, type = "perc")  # growth rate
+#boot.ci(SpainResults, index = 2, type = "perc")  # doubling time
+ 
+
+```
+
+For Spain, the estimated growth rate was **0.276** (95% CI: 0.2335, 0.3172), with a doubling time of **2.51 days** (95% CI: 2.185,  2.968).
+
+
+The following line plot shows daily reported deaths over time, showing the exponential growth during the first wave of the COVID-19 pandemic:
+
+
+```{r}
+
+# plot of daily deaths
+
+ggplot(covid, aes(x = days_since_first_death, y = deaths, color = country)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Daily COVID-19 Deaths in Italy and Spain",
+    x = "Days Since First Death",
+    y = "Daily Deaths"
+  ) +
+  theme_minimal()
+
+```
+
+## **Problem 3: Price Elasticity of Demand**
+
+```{r}
+
+# regression model
+model <- lm(log(sales) ~ log(price), data = milk)
+#summary(model)
+
+```
+
+```{r}
+
+# Bootstrap function
+elasticityBoot <- function(data, indices) {
+  d <- data[indices, ]
+  fit <- lm(log(sales) ~ log(price), data = d)
+  return(coef(fit)[2])  
+}
+
+
+bootResults <- boot(milk, statistic = elasticityBoot, R = 1000)
+
+# 95% CI
+#boot.ci(bootResults, type = "perc")
+
+```
+
+To estimate the price elasticity of demand for milk, a power-law model was used of the form Q = KP^B,
+which becomes linear in logs: 
+
+<div align="center">
+log(Q) = log(K) + B*log(P)
+</div>
+
+This model was estimated using linear regression, with log(sales) as the outcome and log(price) as the predictor.
+
+The estimated price elasticity of demand is approximately **β = -1.620**, with a 95% bootstrapped confidence interval of **(-1.787, -1.460).**
+
+This indicates that demand for milk is **elastic**, since the elasticity is less than -1. Consumers respond strongly to price changes: a 1% increase in milk price leads to approximately a 1.62% decrease in quantity demanded.
+
+
+
